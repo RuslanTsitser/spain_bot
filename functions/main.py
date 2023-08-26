@@ -8,41 +8,29 @@ from firebase_functions import scheduler_fn, https_fn
 from firebase_admin import firestore, initialize_app
 import requests
 import re
+from telebot import TeleBot
 
 initialize_app()
 
 
 @scheduler_fn.on_schedule(
-    schedule="* * * * *",
+    # every minute
+    schedule="*/1 * * * *",
     timezone=scheduler_fn.Timezone("America/Los_Angeles"),
 )
 def example(event: scheduler_fn.ScheduledEvent) -> None:
-    print(event.job_name)
-    print(event.schedule_time)
+    main_data = get_main_data(None)
+    if main_data is None:
+        return
+    save_latest_firestore_data(main_data.firestore_data)
+    send_message_telegram('php_session_id: ' +
+                          main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
 
 
 @https_fn.on_request()
 def handle(request: https_fn.Request) -> https_fn.Response:
     request_php_token = request.args.get("php_token")
-    main_data = None
-    print(request_php_token)
-    if (request_php_token is None):
-        firestore_data = get_latest_firestore_data()
-        print(firestore_data)
-        if firestore_data is None:
-            return https_fn.Response(
-                status=200,
-                headers={
-                    "Content-Type": "application/json",
-                },
-                content_type="application/json",
-                response=json.dumps({
-                    "error": "No token found",
-                },)
-            )
-        main_data = get_php_session_id(firestore_data.php_session_id)
-    else:
-        main_data = get_php_session_id(request_php_token)
+    main_data = get_main_data(request_php_token)
     if main_data is None:
         return https_fn.Response(
             status=200,
@@ -57,6 +45,8 @@ def handle(request: https_fn.Request) -> https_fn.Response:
 
     # save latest firestore data
     save_latest_firestore_data(main_data.firestore_data)
+    send_message_telegram('php_session_id: ' +
+                          main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
     # return response in json format
     return https_fn.Response(
         status=200,
@@ -210,3 +200,21 @@ def save_latest_firestore_data(firestore_data: FirestoreData) -> None:
         u'current_date': firestore_data.current_date,
     })
     print("saved latest firestore data")
+
+
+def send_message_telegram(message: str) -> None:
+    bot = TeleBot("5878623665:AAHSivBGwtr3LA2zehj65WqbKPfs_rT9wnE")
+    bot.send_message("747213289", message)
+    print("send message telegram")
+
+
+def get_main_data(request_php_token: str | None) -> MainData | None:
+    print(request_php_token)
+    if (request_php_token is None):
+        firestore_data = get_latest_firestore_data()
+        print(firestore_data)
+        if firestore_data is None:
+            return None
+        return get_php_session_id(firestore_data.php_session_id)
+    else:
+        return get_php_session_id(request_php_token)
