@@ -23,8 +23,9 @@ def example(event: scheduler_fn.ScheduledEvent) -> None:
     if main_data is None:
         return
     save_latest_firestore_data(main_data.firestore_data)
-    send_message_telegram('php_session_id: ' +
-                          main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
+    if (main_data.available_dates != []):
+        send_message_telegram('php_session_id: ' +
+                              main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
 
 
 @https_fn.on_request()
