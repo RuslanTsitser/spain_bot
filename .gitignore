@@ -2,3 +2,4 @@ functions/__pycache__/
 functions/venv
 functions/requirements.txt
 .firebaserc
+functions/firebase-debug.log    
