@@ -41,7 +41,10 @@ def example(event: scheduler_fn.ScheduledEvent) -> None:
             send_message_telegram(
                 telegram_id=document_id,
                 message='php_session_id: ' +
-                main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
+                main_data.new_php_session_id + '\n' + 'available_dates: ' +
+                str(main_data.available_dates) + '\n' +
+                'url' + firestore_data.url + '\n'
+            )
 
 
 @https_fn.on_request()
@@ -93,7 +96,10 @@ def handle(request: https_fn.Request) -> https_fn.Response:
         send_message_telegram(
             telegram_id=telegram_id,
             message='php_session_id: ' +
-            main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
+            main_data.new_php_session_id + '\n' + 'available_dates: ' +
+            str(main_data.available_dates) + '\n' +
+            'url' + firestore_data.url + '\n'
+        )
 
     # return response in json format
     return https_fn.Response(
