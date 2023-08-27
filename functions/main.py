@@ -114,12 +114,14 @@ def handle(request: https_fn.Request) -> https_fn.Response:
 def get_main_data(input_php_session_id: str | None, telegram_id: str) -> MainData | None:
     is_sent = False
     php_session_id = None
+    url = None
     if (input_php_session_id is None):
         firestore_data = get_latest_firestore_data(telegram_id=telegram_id)
         if firestore_data is None:
             return None
         is_sent = firestore_data.is_sent
         php_session_id = firestore_data.php_session_id
+        url = firestore_data.url
     else:
         php_session_id = input_php_session_id
 
@@ -127,8 +129,10 @@ def get_main_data(input_php_session_id: str | None, telegram_id: str) -> MainDat
     cookies = {
         "PHPSESSID": php_session_id,
     }
+    url = APPOINTMENT_URL if url is None else url
+
     # Send the GET request with cookies
-    response = requests.get(APPOINTMENT_URL, cookies=cookies)
+    response = requests.get(url, cookies=cookies)
 
     # Check if the response contains HTML content
     if "text/html" in response.headers.get("content-type", "").lower():

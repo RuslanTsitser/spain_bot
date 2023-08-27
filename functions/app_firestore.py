@@ -17,7 +17,8 @@ def get_latest_firestore_data(telegram_id: str) -> FirestoreData | None:
             php_session_id=doc.to_dict()["php_session_id"],
             current_date=doc.to_dict()["current_date"],
             is_expired=doc.to_dict()["is_expired"],
-            is_sent=doc.to_dict()["is_sent"]
+            is_sent=doc.to_dict()["is_sent"],
+            url=doc.to_dict()["url"]
         )
     else:
         print(u'No such document!')
@@ -34,6 +35,7 @@ def save_latest_firestore_data(firestore_data: FirestoreData, telegram_id: str) 
         u'current_date': firestore_data.current_date,
         u'is_expired': firestore_data.is_expired,
         u'is_sent': firestore_data.is_sent,
+        u'url': firestore_data.url,
     })
     print("saved latest firestore data")
 

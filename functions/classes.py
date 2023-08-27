@@ -1,19 +1,22 @@
 
 from datetime import datetime
 
+from const.key import APPOINTMENT_URL
+
 
 class FirestoreData:
-    def __init__(self, php_session_id: str, current_date: datetime, is_expired: bool = False, is_sent: bool = False):
+    def __init__(self, php_session_id: str, current_date: datetime, is_expired: bool = False, is_sent: bool = False, url: str | None = APPOINTMENT_URL):
         self.php_session_id = php_session_id
         self.current_date = current_date
         self.is_expired = is_expired
         self.is_sent = is_sent
+        self.url = url
 
     def __str__(self):
-        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}\nis_sent: {self.is_sent}"
+        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}\nis_sent: {self.is_sent}\nurl: {self.url}"
 
     def __repr__(self):
-        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}\nis_sent: {self.is_sent}"
+        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}\nis_sent: {self.is_sent}\nurl: {self.url}"
 
 # class that contain fields: old_php_session_id, new_php_session_id, blocked_dates, available_dates, full_capacity_dates, offDates_dates as not
 
