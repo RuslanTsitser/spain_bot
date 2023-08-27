@@ -34,27 +34,38 @@ def example(event: scheduler_fn.ScheduledEvent) -> None:
         save_latest_firestore_data(main_data.firestore_data, document_id)
         if (main_data.firestore_data.is_expired and main_data.firestore_data.is_sent == False):
             set_is_sent(document_id, True)
-            if (document_id != "latest"):
-                send_message_telegram(
-                    telegram_id=document_id,
-                    message='Token expired' + '\n' +
-                    'php_session_id: ' + main_data.new_php_session_id)
+
+            send_message_telegram(
+                telegram_id=document_id,
+                message='Token expired' + '\n' +
+                'php_session_id: ' + main_data.new_php_session_id)
         elif (main_data.available_dates != []):
-            if (document_id != "latest"):
-                send_message_telegram(
-                    telegram_id=document_id,
-                    message='php_session_id: ' +
-                    main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
+
+            send_message_telegram(
+                telegram_id=document_id,
+                message='php_session_id: ' +
+                main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
 
 
 @https_fn.on_request()
 def handle(request: https_fn.Request) -> https_fn.Response:
     request_php_token = request.args.get("php_token")
     telegram_id = request.args.get("telegram_id")
+    if (telegram_id is None):
+        return https_fn.Response(
+            status=400,
+            headers={
+                "Content-Type": "application/json",
+            },
+            content_type="application/json",
+            response=json.dumps({
+                "error": "No telegram_id",
+            },)
+        )
     main_data = get_main_data(request_php_token, telegram_id)
     if main_data is None:
         return https_fn.Response(
-            status=200,
+            status=400,
             headers={
                 "Content-Type": "application/json",
             },
@@ -100,7 +111,7 @@ def handle(request: https_fn.Request) -> https_fn.Response:
     )
 
 
-def get_main_data(input_php_session_id: str | None, telegram_id: str | None) -> MainData | None:
+def get_main_data(input_php_session_id: str | None, telegram_id: str) -> MainData | None:
     is_sent = False
     php_session_id = None
     if (input_php_session_id is None):

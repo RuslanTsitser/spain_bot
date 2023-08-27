@@ -7,8 +7,7 @@ initialize_app()
 # get latest firestore data
 
 
-def get_latest_firestore_data(telegram_id: str | None) -> FirestoreData | None:
-    telegram_id = telegram_id if telegram_id is not None else "latest"
+def get_latest_firestore_data(telegram_id: str) -> FirestoreData | None:
     print("get latest firestore data")
     db = firestore.client()
     doc_ref = db.collection(u'php_session_id').document(telegram_id)
@@ -27,8 +26,7 @@ def get_latest_firestore_data(telegram_id: str | None) -> FirestoreData | None:
 # save latest firestore data
 
 
-def save_latest_firestore_data(firestore_data: FirestoreData, telegram_id: str | None) -> None:
-    telegram_id = telegram_id if telegram_id is not None else "latest"
+def save_latest_firestore_data(firestore_data: FirestoreData, telegram_id: str) -> None:
     db = firestore.client()
     doc_ref = db.collection(u'php_session_id').document(telegram_id)
     doc_ref.set({
