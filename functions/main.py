@@ -5,12 +5,12 @@
 from datetime import datetime
 import json
 from firebase_functions import scheduler_fn, https_fn
-from firebase_admin import firestore, initialize_app
 import requests
 import re
-from telebot import TeleBot
 
-initialize_app()
+from functions.app_firestore import get_latest_firestore_data, save_latest_firestore_data
+from functions.app_telegram_bot import send_message_telegram
+from functions.classes import FirestoreData, MainData
 
 
 @scheduler_fn.on_schedule(
@@ -85,39 +85,6 @@ def handle(request: https_fn.Request) -> https_fn.Response:
 
 # URL to request
 url = "https://blsspain-russia.com/moscow/english/appointment.php"
-
-
-class FirestoreData:
-    def __init__(self, php_session_id: str, current_date: datetime, is_expired: bool = False, is_sent: bool = False):
-        self.php_session_id = php_session_id
-        self.current_date = current_date
-        self.is_expired = is_expired
-        self.is_sent = is_sent
-
-    def __str__(self):
-        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}\nis_sent: {self.is_sent}"
-
-    def __repr__(self):
-        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}\nis_sent: {self.is_sent}"
-
-# class that contain fields: old_php_session_id, new_php_session_id, blocked_dates, available_dates, full_capacity_dates, offDates_dates as not
-
-
-class MainData:
-    def __init__(self, old_php_session_id: str, new_php_session_id: str, blocked_dates: list, available_dates: list, full_capacity_dates: list, offDates_dates: list, firestore_data: FirestoreData):
-        self.old_php_session_id = old_php_session_id
-        self.new_php_session_id = new_php_session_id
-        self.blocked_dates = blocked_dates
-        self.available_dates = available_dates
-        self.full_capacity_dates = full_capacity_dates
-        self.offDates_dates = offDates_dates
-        self.firestore_data = firestore_data
-
-    def __str__(self):
-        return f"old_php_session_id: {self.old_php_session_id}\nnew_php_session_id: {self.new_php_session_id}\nblocked_dates: {self.blocked_dates}\navailable_dates: {self.available_dates}\nfull_capacity_dates: {self.full_capacity_dates}\noffDates_dates: {self.offDates_dates}\n{self.firestore_data}"
-
-    def __repr__(self):
-        return f"old_php_session_id: {self.old_php_session_id}\nnew_php_session_id: {self.new_php_session_id}\nblocked_dates: {self.blocked_dates}\navailable_dates: {self.available_dates}\nfull_capacity_dates: {self.full_capacity_dates}\noffDates_dates: {self.offDates_dates}\n{self.firestore_data}"
 
 
 def get_php_session_id(php_session_id: str) -> MainData:
@@ -215,44 +182,6 @@ def get_php_session_id(php_session_id: str) -> MainData:
                       firestore_data=firestore_data
                       )
     return result
-
-
-# get latest firestore data
-def get_latest_firestore_data() -> FirestoreData | None:
-    print("get latest firestore data")
-    db = firestore.client()
-    doc_ref = db.collection(u'php_session_id').document(u'latest')
-    doc = doc_ref.get()
-    if doc.exists:
-        return FirestoreData(
-            php_session_id=doc.to_dict()["php_session_id"],
-            current_date=doc.to_dict()["current_date"],
-            is_expired=doc.to_dict()["is_expired"],
-            is_sent=doc.to_dict()["is_sent"]
-        )
-    else:
-        print(u'No such document!')
-        return None
-
-# save latest firestore data
-
-
-def save_latest_firestore_data(firestore_data: FirestoreData) -> None:
-    db = firestore.client()
-    doc_ref = db.collection(u'php_session_id').document(u'latest')
-    doc_ref.set({
-        u'php_session_id': firestore_data.php_session_id,
-        u'current_date': firestore_data.current_date,
-        u'is_expired': firestore_data.is_expired,
-        u'is_sent': firestore_data.is_sent,
-    })
-    print("saved latest firestore data")
-
-
-def send_message_telegram(message: str) -> None:
-    bot = TeleBot("5878623665:AAHSivBGwtr3LA2zehj65WqbKPfs_rT9wnE")
-    bot.send_message("747213289", message)
-    print("send message telegram")
 
 
 def get_main_data(request_php_token: str | None) -> MainData | None:
