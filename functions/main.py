@@ -26,7 +26,14 @@ def example(event: scheduler_fn.ScheduledEvent) -> None:
     if (main_data.available_dates != []):
         send_message_telegram('php_session_id: ' +
                               main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
-    elif (main_data.firestore_data.is_expired):
+    elif (main_data.firestore_data.is_expired & (main_data.firestore_data.is_sent == False)):
+        firestore_data = FirestoreData(
+            php_session_id=main_data.new_php_session_id,
+            current_date=datetime.now(),
+            is_expired=True,
+            is_sent=True
+        )
+        save_latest_firestore_data(firestore_data)
         send_message_telegram('Token expired' + '\n' +
                               'php_session_id: ' + main_data.new_php_session_id)
 
@@ -81,17 +88,17 @@ url = "https://blsspain-russia.com/moscow/english/appointment.php"
 
 
 class FirestoreData:
-    def __init__(self, php_session_id: str, current_date: datetime, is_expired: bool = False):
+    def __init__(self, php_session_id: str, current_date: datetime, is_expired: bool = False, is_sent: bool = False):
         self.php_session_id = php_session_id
         self.current_date = current_date
         self.is_expired = is_expired
+        self.is_sent = is_sent
 
     def __str__(self):
-        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}"
+        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}\nis_sent: {self.is_sent}"
 
     def __repr__(self):
-        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}"
-
+        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}\nis_sent: {self.is_sent}"
 
 # class that contain fields: old_php_session_id, new_php_session_id, blocked_dates, available_dates, full_capacity_dates, offDates_dates as not
 
@@ -220,7 +227,8 @@ def get_latest_firestore_data() -> FirestoreData | None:
         return FirestoreData(
             php_session_id=doc.to_dict()["php_session_id"],
             current_date=doc.to_dict()["current_date"],
-            is_expired=doc.to_dict()["is_expired"]
+            is_expired=doc.to_dict()["is_expired"],
+            is_sent=doc.to_dict()["is_sent"]
         )
     else:
         print(u'No such document!')
@@ -236,6 +244,7 @@ def save_latest_firestore_data(firestore_data: FirestoreData) -> None:
         u'php_session_id': firestore_data.php_session_id,
         u'current_date': firestore_data.current_date,
         u'is_expired': firestore_data.is_expired,
+        u'is_sent': firestore_data.is_sent,
     })
     print("saved latest firestore data")
 
