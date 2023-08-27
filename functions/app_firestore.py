@@ -38,3 +38,19 @@ def save_latest_firestore_data(firestore_data: FirestoreData, telegram_id: str |
         u'is_sent': firestore_data.is_sent,
     })
     print("saved latest firestore data")
+
+# get list of documents ids
+
+
+def get_list_of_documents_ids() -> list[str]:
+    db = firestore.client()
+    docs = db.collection(u'php_session_id').stream()
+    return [doc.id for doc in docs]
+
+
+def set_is_sent(telegram_id: str, value: bool) -> None:
+    db = firestore.client()
+    doc_ref = db.collection(u'php_session_id').document(telegram_id)
+    doc_ref.update({
+        u'is_sent': value,
+    })

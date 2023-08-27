@@ -12,6 +12,8 @@ from app_firestore import get_latest_firestore_data, save_latest_firestore_data
 from app_telegram_bot import send_message_telegram
 from classes import FirestoreData, MainData
 from const.key import APPOINTMENT_URL
+from app_firestore import get_list_of_documents_ids
+from app_firestore import set_is_sent
 
 
 @scheduler_fn.on_schedule(
@@ -20,20 +22,29 @@ from const.key import APPOINTMENT_URL
     timezone=scheduler_fn.Timezone("America/Los_Angeles"),
 )
 def example(event: scheduler_fn.ScheduledEvent) -> None:
-    main_data = get_main_data(None, None)
-    if main_data is None:
-        return
-    save_latest_firestore_data(main_data.firestore_data, None)
-    if (main_data.firestore_data.is_expired):
-        send_message_telegram(
-            telegram_id="747213289",
-            message='Token expired' + '\n' +
-            'php_session_id: ' + main_data.new_php_session_id)
-    else:
-        send_message_telegram(
-            telegram_id="747213289",
-            message='php_session_id: ' +
-            main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
+    document_ids = get_list_of_documents_ids()
+    for document_id in document_ids:
+        firestore_data = get_latest_firestore_data(document_id)
+        if firestore_data is None:
+            continue
+        main_data = get_main_data(
+            firestore_data.php_session_id, document_id)
+        if main_data is None:
+            continue
+        save_latest_firestore_data(main_data.firestore_data, document_id)
+        if (main_data.firestore_data.is_expired and main_data.firestore_data.is_sent == False):
+            set_is_sent(document_id, True)
+            if (document_id != "latest"):
+                send_message_telegram(
+                    telegram_id=document_id,
+                    message='Token expired' + '\n' +
+                    'php_session_id: ' + main_data.new_php_session_id)
+        elif (main_data.available_dates != []):
+            if (document_id != "latest"):
+                send_message_telegram(
+                    telegram_id=document_id,
+                    message='php_session_id: ' +
+                    main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
 
 
 @https_fn.on_request()
@@ -55,6 +66,18 @@ def handle(request: https_fn.Request) -> https_fn.Response:
 
     # save latest firestore data
     save_latest_firestore_data(main_data.firestore_data, telegram_id)
+    if (main_data.firestore_data.is_expired and main_data.firestore_data.is_sent == False):
+        user_id = telegram_id if telegram_id is not None else "747213289"
+        set_is_sent(user_id, True)
+        send_message_telegram(
+            telegram_id=user_id,
+            message='Token expired' + '\n' +
+            'php_session_id: ' + main_data.new_php_session_id)
+    elif (main_data.available_dates != []):
+        send_message_telegram(
+            telegram_id=telegram_id if telegram_id is not None else "747213289",
+            message='php_session_id: ' +
+            main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
 
     # return response in json format
     return https_fn.Response(
@@ -67,6 +90,7 @@ def handle(request: https_fn.Request) -> https_fn.Response:
             "php_session_id": main_data.old_php_session_id,
             "new_php_session_id": main_data.new_php_session_id,
             "is_expired": main_data.firestore_data.is_expired,
+            "is_sent": main_data.firestore_data.is_sent,
             "available_dates": main_data.available_dates,
             "full_capacity_dates": main_data.full_capacity_dates,
             "offDates_dates": main_data.offDates_dates,
@@ -76,7 +100,18 @@ def handle(request: https_fn.Request) -> https_fn.Response:
     )
 
 
-def get_php_session_id(php_session_id: str) -> MainData:
+def get_main_data(input_php_session_id: str | None, telegram_id: str | None) -> MainData | None:
+    is_sent = False
+    php_session_id = None
+    if (input_php_session_id is None):
+        firestore_data = get_latest_firestore_data(telegram_id=telegram_id)
+        if firestore_data is None:
+            return None
+        is_sent = firestore_data.is_sent
+        php_session_id = firestore_data.php_session_id
+    else:
+        php_session_id = input_php_session_id
+
     # Cookies
     cookies = {
         "PHPSESSID": php_session_id,
@@ -142,6 +177,7 @@ def get_php_session_id(php_session_id: str) -> MainData:
             print("HTML content does not match expectations.")
     else:
         print("No HTML content found in response.")
+
     return MainData(old_php_session_id=php_session_id,
                     new_php_session_id=php_session_id,
                     blocked_dates=[],
@@ -151,18 +187,7 @@ def get_php_session_id(php_session_id: str) -> MainData:
                     firestore_data=FirestoreData(
                         php_session_id=php_session_id,
                         current_date=datetime.now(),
-                        is_expired=True
+                        is_expired=True,
+                        is_sent=is_sent
                     )
                     )
-
-
-def get_main_data(request_php_token: str | None, telegram_id: str | None) -> MainData | None:
-    print(request_php_token)
-    if (request_php_token is None):
-        firestore_data = get_latest_firestore_data(telegram_id=telegram_id)
-        print(firestore_data)
-        if firestore_data is None:
-            return None
-        return get_php_session_id(firestore_data.php_session_id)
-    else:
-        return get_php_session_id(request_php_token)
