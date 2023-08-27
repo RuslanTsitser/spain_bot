@@ -1,7 +1,8 @@
 from telebot import TeleBot
+from const.key import TELEGRAM_BOT_TOKEN
 
 
-def send_message_telegram(message: str) -> None:
-    bot = TeleBot("5878623665:AAHSivBGwtr3LA2zehj65WqbKPfs_rT9wnE")
-    bot.send_message("747213289", message)
+def send_message_telegram(message: str, telegram_id: str) -> None:
+    bot = TeleBot(TELEGRAM_BOT_TOKEN)
+    bot.send_message(telegram_id, message)
     print("send message telegram")

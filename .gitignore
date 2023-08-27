@@ -3,3 +3,4 @@ functions/venv
 functions/requirements.txt
 .firebaserc
 functions/firebase-debug.log    
+functions/const/
