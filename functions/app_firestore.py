@@ -1,6 +1,7 @@
 from firebase_admin import firestore, initialize_app
 
 from classes import FirestoreData
+from const.key import APPOINTMENT_URL
 
 initialize_app()
 
@@ -18,7 +19,8 @@ def get_latest_firestore_data(telegram_id: str) -> FirestoreData | None:
             current_date=doc.to_dict()["current_date"],
             is_expired=doc.to_dict()["is_expired"],
             is_sent=doc.to_dict()["is_sent"],
-            url=doc.to_dict()["url"]
+            url=doc.to_dict()["url"] if "url" in doc.to_dict(
+            ) else APPOINTMENT_URL,
         )
     else:
         print(u'No such document!')

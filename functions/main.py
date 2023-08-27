@@ -28,13 +28,12 @@ def example(event: scheduler_fn.ScheduledEvent) -> None:
         if firestore_data is None:
             continue
         main_data = get_main_data(
-            firestore_data.php_session_id, document_id)
+            firestore_data.php_session_id, document_id, firestore_data.url, firestore_data.is_sent)
         if main_data is None:
             continue
         save_latest_firestore_data(main_data.firestore_data, document_id)
         if (main_data.firestore_data.is_expired and main_data.firestore_data.is_sent == False):
             set_is_sent(document_id, True)
-
             send_message_telegram(
                 telegram_id=document_id,
                 message='Token expired' + '\n' +
@@ -51,6 +50,9 @@ def example(event: scheduler_fn.ScheduledEvent) -> None:
 def handle(request: https_fn.Request) -> https_fn.Response:
     request_php_token = request.args.get("php_token")
     telegram_id = request.args.get("telegram_id")
+    url = request.args.get("url")
+    if (url is None):
+        url = APPOINTMENT_URL
     if (telegram_id is None):
         return https_fn.Response(
             status=400,
@@ -62,7 +64,7 @@ def handle(request: https_fn.Request) -> https_fn.Response:
                 "error": "No telegram_id",
             },)
         )
-    main_data = get_main_data(request_php_token, telegram_id)
+    main_data = get_main_data(request_php_token, telegram_id, url, False)
     if main_data is None:
         return https_fn.Response(
             status=400,
@@ -75,18 +77,20 @@ def handle(request: https_fn.Request) -> https_fn.Response:
             },)
         )
 
+    firestore_data = main_data.firestore_data
+    if (url is not None):
+        firestore_data.url = url
     # save latest firestore data
-    save_latest_firestore_data(main_data.firestore_data, telegram_id)
+    save_latest_firestore_data(firestore_data, telegram_id)
     if (main_data.firestore_data.is_expired and main_data.firestore_data.is_sent == False):
-        user_id = telegram_id if telegram_id is not None else "747213289"
-        set_is_sent(user_id, True)
+        set_is_sent(telegram_id, True)
         send_message_telegram(
-            telegram_id=user_id,
+            telegram_id=telegram_id,
             message='Token expired' + '\n' +
             'php_session_id: ' + main_data.new_php_session_id)
-    elif (main_data.available_dates != []):
+    else:
         send_message_telegram(
-            telegram_id=telegram_id if telegram_id is not None else "747213289",
+            telegram_id=telegram_id,
             message='php_session_id: ' +
             main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
 
@@ -98,6 +102,7 @@ def handle(request: https_fn.Request) -> https_fn.Response:
         },
         content_type="application/json",
         response=json.dumps({
+            "url": main_data.firestore_data.url,
             "php_session_id": main_data.old_php_session_id,
             "new_php_session_id": main_data.new_php_session_id,
             "is_expired": main_data.firestore_data.is_expired,
@@ -111,26 +116,24 @@ def handle(request: https_fn.Request) -> https_fn.Response:
     )
 
 
-def get_main_data(input_php_session_id: str | None, telegram_id: str) -> MainData | None:
-    is_sent = False
+def get_main_data(input_php_session_id: str | None, telegram_id: str, url: str, is_sent: bool) -> MainData | None:
     php_session_id = None
-    url = None
-    if (input_php_session_id is None):
-        firestore_data = get_latest_firestore_data(telegram_id=telegram_id)
+    if (input_php_session_id is not None):
+        php_session_id = input_php_session_id
+    else:
+        firestore_data = get_latest_firestore_data(telegram_id)
         if firestore_data is None:
             return None
-        is_sent = firestore_data.is_sent
         php_session_id = firestore_data.php_session_id
+        is_sent = firestore_data.is_sent
         url = firestore_data.url
-    else:
-        php_session_id = input_php_session_id
 
     # Cookies
     cookies = {
         "PHPSESSID": php_session_id,
     }
-    url = APPOINTMENT_URL if url is None else url
-
+    print(f"PHPSESSID value: {php_session_id}")
+    print(f"URL value: {url}")
     # Send the GET request with cookies
     response = requests.get(url, cookies=cookies)
 
@@ -184,7 +187,8 @@ def get_main_data(input_php_session_id: str | None, telegram_id: str) -> MainDat
                               offDates_dates=offDates_dates,
                               firestore_data=FirestoreData(
                                   php_session_id=new_php_session_id,
-                                  current_date=datetime.now()
+                                  current_date=datetime.now(),
+                                  url=url,
                               )
                               )
             return result
@@ -203,6 +207,7 @@ def get_main_data(input_php_session_id: str | None, telegram_id: str) -> MainDat
                         php_session_id=php_session_id,
                         current_date=datetime.now(),
                         is_expired=True,
-                        is_sent=is_sent
+                        is_sent=is_sent,
+                        url=url,
                     )
                     )

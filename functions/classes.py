@@ -5,12 +5,12 @@ from const.key import APPOINTMENT_URL
 
 
 class FirestoreData:
-    def __init__(self, php_session_id: str, current_date: datetime, is_expired: bool = False, is_sent: bool = False, url: str | None = APPOINTMENT_URL):
+    def __init__(self, php_session_id: str, current_date: datetime, url: str, is_expired: bool = False, is_sent: bool = False,):
         self.php_session_id = php_session_id
+        self.url = url
         self.current_date = current_date
         self.is_expired = is_expired
         self.is_sent = is_sent
-        self.url = url
 
     def __str__(self):
         return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}\nis_sent: {self.is_sent}\nurl: {self.url}"
