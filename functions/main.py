@@ -26,6 +26,9 @@ def example(event: scheduler_fn.ScheduledEvent) -> None:
     if (main_data.available_dates != []):
         send_message_telegram('php_session_id: ' +
                               main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
+    elif (main_data.firestore_data.is_expired):
+        send_message_telegram('Token expired' + '\n' +
+                              'php_session_id: ' + main_data.new_php_session_id)
 
 
 @https_fn.on_request()
@@ -40,14 +43,19 @@ def handle(request: https_fn.Request) -> https_fn.Response:
             },
             content_type="application/json",
             response=json.dumps({
-                "error": "Token expired",
+                "error": "No firestore data",
             },)
         )
 
     # save latest firestore data
     save_latest_firestore_data(main_data.firestore_data)
-    send_message_telegram('php_session_id: ' +
-                          main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
+    if (main_data.firestore_data.is_expired):
+        send_message_telegram('Token expired' + '\n' +
+                              'php_session_id: ' + main_data.new_php_session_id)
+    else:
+        send_message_telegram('php_session_id: ' +
+                              main_data.new_php_session_id + '\n' + 'available_dates: ' + str(main_data.available_dates) + '\n' + 'full_capacity_dates: ' + str(main_data.full_capacity_dates) + '\n' + 'offDates_dates: ' + str(main_data.offDates_dates) + '\n' + 'old_php_session_id: ' + main_data.old_php_session_id)
+
     # return response in json format
     return https_fn.Response(
         status=200,
@@ -58,6 +66,7 @@ def handle(request: https_fn.Request) -> https_fn.Response:
         response=json.dumps({
             "php_session_id": main_data.old_php_session_id,
             "new_php_session_id": main_data.new_php_session_id,
+            "is_expired": main_data.firestore_data.is_expired,
             "available_dates": main_data.available_dates,
             "full_capacity_dates": main_data.full_capacity_dates,
             "offDates_dates": main_data.offDates_dates,
@@ -72,15 +81,17 @@ url = "https://blsspain-russia.com/moscow/english/appointment.php"
 
 
 class FirestoreData:
-    def __init__(self, php_session_id: str, current_date: datetime):
+    def __init__(self, php_session_id: str, current_date: datetime, is_expired: bool = False):
         self.php_session_id = php_session_id
         self.current_date = current_date
+        self.is_expired = is_expired
 
     def __str__(self):
-        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}"
+        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}"
 
     def __repr__(self):
-        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}"
+        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}"
+
 
 # class that contain fields: old_php_session_id, new_php_session_id, blocked_dates, available_dates, full_capacity_dates, offDates_dates as not
 
@@ -102,7 +113,7 @@ class MainData:
         return f"old_php_session_id: {self.old_php_session_id}\nnew_php_session_id: {self.new_php_session_id}\nblocked_dates: {self.blocked_dates}\navailable_dates: {self.available_dates}\nfull_capacity_dates: {self.full_capacity_dates}\noffDates_dates: {self.offDates_dates}\n{self.firestore_data}"
 
 
-def get_php_session_id(php_session_id: str) -> MainData | None:
+def get_php_session_id(php_session_id: str) -> MainData:
     # Cookies
     cookies = {
         "PHPSESSID": php_session_id,
@@ -118,10 +129,34 @@ def get_php_session_id(php_session_id: str) -> MainData | None:
             print("Valid HTML content found in response.")
         else:
             print("HTML content does not match expectations.")
-            return None
+            firestore_data = FirestoreData(
+                php_session_id=php_session_id,
+                current_date=datetime.now(),
+                is_expired=True
+            )
+            return MainData(old_php_session_id=php_session_id,
+                            new_php_session_id=php_session_id,
+                            blocked_dates=[],
+                            available_dates=[],
+                            full_capacity_dates=[],
+                            offDates_dates=[],
+                            firestore_data=firestore_data
+                            )
     else:
         print("No HTML content found in response.")
-        return None
+        firestore_data = FirestoreData(
+            php_session_id=php_session_id,
+            current_date=datetime.now(),
+            is_expired=True
+        )
+        return MainData(old_php_session_id=php_session_id,
+                        new_php_session_id=php_session_id,
+                        blocked_dates=[],
+                        available_dates=[],
+                        full_capacity_dates=[],
+                        offDates_dates=[],
+                        firestore_data=firestore_data
+                        )
 
     # Check if the response contains the expected JavaScript content
     expected_js_content = r'var blocked_dates = \[.*var available_dates = \[\];.*'
@@ -185,6 +220,7 @@ def get_latest_firestore_data() -> FirestoreData | None:
         return FirestoreData(
             php_session_id=doc.to_dict()["php_session_id"],
             current_date=doc.to_dict()["current_date"],
+            is_expired=doc.to_dict()["is_expired"]
         )
     else:
         print(u'No such document!')
@@ -199,6 +235,7 @@ def save_latest_firestore_data(firestore_data: FirestoreData) -> None:
     doc_ref.set({
         u'php_session_id': firestore_data.php_session_id,
         u'current_date': firestore_data.current_date,
+        u'is_expired': firestore_data.is_expired,
     })
     print("saved latest firestore data")
 
