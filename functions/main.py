@@ -23,7 +23,8 @@ def example(event: scheduler_fn.ScheduledEvent) -> None:
         firestore_data = get_latest_firestore_data(document_id)
         if firestore_data is None:
             continue
-        main_data = get_main_data_from_db(firestore_data)
+        main_data = get_main_data_from_db(
+            firestore_data, is_sent=firestore_data.is_sent)
         if main_data is None:
             continue
         save_latest_firestore_data(main_data.firestore_data, document_id)

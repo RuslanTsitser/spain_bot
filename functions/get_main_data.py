@@ -11,7 +11,8 @@ from const.key import APPOINTMENT_URL
 
 def fetch_data_from_website(
     php_session_id: str,
-    url: str
+    url: str,
+    is_sent: bool = False,
 ) -> FirestoreDataWithDates:
     # Cookies
     cookies = {
@@ -67,7 +68,7 @@ def fetch_data_from_website(
                 php_session_id=new_php_session_id,
                 current_date=datetime.now(),
                 is_expired=False,
-                is_sent=False,
+                is_sent=is_sent,
                 url=url,
                 blocked_dates=blocked_dates,
                 available_dates=available_dates,
@@ -78,7 +79,7 @@ def fetch_data_from_website(
         php_session_id=php_session_id,
         current_date=datetime.now(),
         is_expired=True,
-        is_sent=False,
+        is_sent=is_sent,
         url=url,
         blocked_dates=[],
         available_dates=[],
@@ -88,11 +89,13 @@ def fetch_data_from_website(
 
 
 # Get main data from the website using FirestoreData
-def get_main_data_from_db(firestore_data: FirestoreData) -> MainData:
+def get_main_data_from_db(firestore_data: FirestoreData,
+                          is_sent: bool = False
+                          ) -> MainData:
     php_session_id = firestore_data.php_session_id
     url = firestore_data.url
 
-    firestore_data = fetch_data_from_website(php_session_id, url)
+    firestore_data = fetch_data_from_website(php_session_id, url, is_sent)
 
     return MainData(
         old_php_session_id=php_session_id,
