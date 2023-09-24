@@ -2,14 +2,17 @@ from datetime import datetime
 
 import re
 import requests
-from classes import FirestoreData, MainData
+from classes import FirestoreData, FirestoreDataWithDates, MainData
 from app_firestore import get_latest_firestore_data, save_latest_firestore_data
+from const.key import APPOINTMENT_URL
+
+# Fetch main data from the website using the PHPSESSID cookie
 
 
-def get_main_data_from_db(firestore_data: FirestoreData) -> MainData:
-    php_session_id = firestore_data.php_session_id
-    url = firestore_data.url
-
+def fetch_data_from_website(
+    php_session_id: str,
+    url: str
+) -> FirestoreDataWithDates:
     # Cookies
     cookies = {
         "PHPSESSID": php_session_id,
@@ -60,38 +63,49 @@ def get_main_data_from_db(firestore_data: FirestoreData) -> MainData:
             full_capacity_dates = eval(full_capacity_dates)
             offDates_dates = eval(offDates_dates)
 
-            firestore_data.php_session_id = new_php_session_id
-            firestore_data.is_expired = False
-            firestore_data.is_sent = False
-            firestore_data.url = url
-            firestore_data.current_date = datetime.now()
-            # Print the extracted values
-            result = MainData(old_php_session_id=php_session_id,
-                              new_php_session_id=new_php_session_id,
-                              blocked_dates=blocked_dates,
-                              available_dates=available_dates,
-                              full_capacity_dates=full_capacity_dates,
-                              offDates_dates=offDates_dates,
-                              firestore_data=firestore_data
-                              )
-            return result
-        else:
-            print("HTML content does not match expectations.")
-    else:
-        print("No HTML content found in response.")
-
-    firestore_data.is_expired = True
-    firestore_data.current_date = datetime.now()
-    return MainData(old_php_session_id=php_session_id,
-                    new_php_session_id=php_session_id,
-                    blocked_dates=[],
-                    available_dates=[],
-                    full_capacity_dates=[],
-                    offDates_dates=[],
-                    firestore_data=firestore_data
-                    )
+            return FirestoreDataWithDates(
+                php_session_id=new_php_session_id,
+                current_date=datetime.now(),
+                is_expired=False,
+                is_sent=False,
+                url=url,
+                blocked_dates=blocked_dates,
+                available_dates=available_dates,
+                full_capacity_dates=full_capacity_dates,
+                offDates_dates=offDates_dates,
+            )
+    return FirestoreDataWithDates(
+        php_session_id=php_session_id,
+        current_date=datetime.now(),
+        is_expired=True,
+        is_sent=False,
+        url=url,
+        blocked_dates=[],
+        available_dates=[],
+        full_capacity_dates=[],
+        offDates_dates=[],
+    )
 
 
+# Get main data from the website using FirestoreData
+def get_main_data_from_db(firestore_data: FirestoreData) -> MainData:
+    php_session_id = firestore_data.php_session_id
+    url = firestore_data.url
+
+    firestore_data = fetch_data_from_website(php_session_id, url)
+
+    return MainData(
+        old_php_session_id=php_session_id,
+        new_php_session_id=firestore_data.php_session_id,
+        blocked_dates=firestore_data.blocked_dates,
+        available_dates=firestore_data.available_dates,
+        full_capacity_dates=firestore_data.full_capacity_dates,
+        offDates_dates=firestore_data.offDates_dates,
+        firestore_data=firestore_data,
+    )
+
+
+# Get main data from the website using FirestoreData found by telegram_id or request_php_token and url
 def get_main_data(
     request_php_token: str | None,
     url: str | None,
@@ -100,7 +114,13 @@ def get_main_data(
 
     firestore_data = get_latest_firestore_data(telegram_id)
     if firestore_data is None:
-        return None
+        if (request_php_token is not None):
+            url = url if url is not None else APPOINTMENT_URL
+            firestore_data = fetch_data_from_website(request_php_token, url)
+            save_latest_firestore_data(firestore_data, telegram_id)
+            return get_main_data_from_db(firestore_data)
+        else:
+            return None
 
     if (request_php_token is not None):
         firestore_data.php_session_id = request_php_token

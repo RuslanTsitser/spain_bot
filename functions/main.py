@@ -39,7 +39,7 @@ def example(event: scheduler_fn.ScheduledEvent) -> None:
                 message='php_session_id: ' +
                 main_data.new_php_session_id + '\n' + 'available_dates: ' +
                 str(main_data.available_dates) + '\n' +
-                'url: ' + firestore_data.url
+                'url: ' + main_data.firestore_data.url
             )
 
 

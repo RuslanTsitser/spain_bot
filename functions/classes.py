@@ -16,6 +16,23 @@ class FirestoreData:
     def __repr__(self):
         return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}\nis_sent: {self.is_sent}\nurl: {self.url}"
 
+
+# class that extends FirestoreData with fields: blocked_dates, available_dates, full_capacity_dates, offDates_dates
+
+class FirestoreDataWithDates(FirestoreData):
+    def __init__(self, php_session_id: str, current_date: datetime, url: str, blocked_dates: list, available_dates: list, full_capacity_dates: list, offDates_dates: list, is_expired: bool = False, is_sent: bool = False,):
+        super().__init__(php_session_id, current_date, url, is_expired, is_sent)
+        self.blocked_dates = blocked_dates
+        self.available_dates = available_dates
+        self.full_capacity_dates = full_capacity_dates
+        self.offDates_dates = offDates_dates
+
+    def __str__(self):
+        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}\nis_sent: {self.is_sent}\nurl: {self.url}\nblocked_dates: {self.blocked_dates}\navailable_dates: {self.available_dates}\nfull_capacity_dates: {self.full_capacity_dates}\noffDates_dates: {self.offDates_dates}"
+
+    def __repr__(self):
+        return f"php_session_id: {self.php_session_id}\ncurrent_date: {self.current_date}\nis_expired: {self.is_expired}\nis_sent: {self.is_sent}\nurl: {self.url}\nblocked_dates: {self.blocked_dates}\navailable_dates: {self.available_dates}\nfull_capacity_dates: {self.full_capacity_dates}\noffDates_dates: {self.offDates_dates}"
+
 # class that contain fields: old_php_session_id, new_php_session_id, blocked_dates, available_dates, full_capacity_dates, offDates_dates as not
 
 
