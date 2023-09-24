@@ -5,8 +5,6 @@ from const.key import APPOINTMENT_URL
 
 initialize_app()
 
-# get latest firestore data
-
 
 def get_latest_firestore_data(telegram_id: str) -> FirestoreData | None:
     print("get latest firestore data")

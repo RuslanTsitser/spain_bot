@@ -1,8 +1,6 @@
 
 from datetime import datetime
 
-from const.key import APPOINTMENT_URL
-
 
 class FirestoreData:
     def __init__(self, php_session_id: str, current_date: datetime, url: str, is_expired: bool = False, is_sent: bool = False,):

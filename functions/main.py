@@ -11,7 +11,6 @@ import re
 from app_firestore import get_latest_firestore_data, save_latest_firestore_data
 from app_telegram_bot import send_message_telegram
 from classes import FirestoreData, MainData
-from const.key import APPOINTMENT_URL
 from app_firestore import get_list_of_documents_ids
 from app_firestore import set_is_sent
 
