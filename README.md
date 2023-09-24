@@ -13,6 +13,6 @@ This project is a starting point for a Flutter application.
 
 ### Requirements
 
-- [Firebase Admin SDK](https://firebase.google.com/docs/admin/setup)
-- [Firebase Functions](https://firebase.google.com/docs/functions/get-started)
-- [Python telegram bot](https://pypi.org/project/pyTelegramBotAPI)
+- [Firebase Admin SDK](https://firebase.google.com/docs/admin/setup#python)
+- [Firebase Functions](https://firebase.google.com/docs/functions/get-started?gen=2nd#python-preview)
+- [Python telegram bot](https://pypi.org/project/pyTelegramBotAPI/#getting-started)
