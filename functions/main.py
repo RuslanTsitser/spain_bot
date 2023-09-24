@@ -6,10 +6,10 @@ import json
 from firebase_functions import scheduler_fn, https_fn
 
 from app_firestore import get_latest_firestore_data, save_latest_firestore_data
-from app_telegram_bot import send_message_telegram
+from app_telegram_bot import handle_request, send_message_telegram
 from app_firestore import get_list_of_documents_ids
 from app_firestore import set_is_sent
-from get_main_data import get_main_data
+from get_main_data import get_main_data, get_main_data_from_db
 
 
 @scheduler_fn.on_schedule(
@@ -23,7 +23,7 @@ def example(event: scheduler_fn.ScheduledEvent) -> None:
         firestore_data = get_latest_firestore_data(document_id)
         if firestore_data is None:
             continue
-        main_data = get_main_data(firestore_data)
+        main_data = get_main_data_from_db(firestore_data)
         if main_data is None:
             continue
         save_latest_firestore_data(main_data.firestore_data, document_id)
@@ -60,8 +60,14 @@ def handle(request: https_fn.Request) -> https_fn.Response:
                 "error": "No telegram_id",
             },)
         )
-    firestore_data = get_latest_firestore_data(telegram_id)
-    if firestore_data is None:
+
+    main_data = get_main_data(
+        request_php_token=request_php_token,
+        url=url,
+        telegram_id=telegram_id,
+    )
+
+    if (main_data is None):
         return https_fn.Response(
             status=400,
             headers={
@@ -69,20 +75,10 @@ def handle(request: https_fn.Request) -> https_fn.Response:
             },
             content_type="application/json",
             response=json.dumps({
-                "error": "No firestore data",
+                "error": "No data",
             },)
         )
-    if (request_php_token is not None):
-        firestore_data.php_session_id = request_php_token
 
-    if (url is not None):
-        firestore_data.url = url
-
-    main_data = get_main_data(firestore_data)
-
-    firestore_data = main_data.firestore_data
-    # save latest firestore data
-    save_latest_firestore_data(firestore_data, telegram_id)
     if (main_data.firestore_data.is_expired):
         send_message_telegram(
             telegram_id=telegram_id,
@@ -94,7 +90,7 @@ def handle(request: https_fn.Request) -> https_fn.Response:
             message='php_session_id: ' +
             main_data.new_php_session_id + '\n' + 'available_dates: ' +
             str(main_data.available_dates) + '\n' +
-            'url: ' + firestore_data.url
+            'url: ' + main_data.firestore_data.url
         )
 
     # return response in json format
@@ -117,3 +113,34 @@ def handle(request: https_fn.Request) -> https_fn.Response:
         },)
 
     )
+
+
+@https_fn.on_request()
+def handle_telegram(request: https_fn.Request) -> https_fn.Response:
+    json_string = request.get_json(force=True)
+    print(json_string)
+
+    try:
+        handle_request(json_string)
+        return https_fn.Response(
+            status=200,
+            headers={
+                "Content-Type": "application/json"
+            },
+            content_type="application/json",
+            response=json.dumps({
+                "message": "success",
+            },)
+        )
+    except Exception as e:
+        print(e)
+        return https_fn.Response(
+            status=400,
+            headers={
+                "Content-Type": "application/json"
+            },
+            content_type="application/json",
+            response=json.dumps({
+                "message": "error",
+            },)
+        )

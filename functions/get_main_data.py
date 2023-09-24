@@ -3,12 +3,12 @@ from datetime import datetime
 import re
 import requests
 from classes import FirestoreData, MainData
+from app_firestore import get_latest_firestore_data, save_latest_firestore_data
 
 
-def get_main_data(firestore_data: FirestoreData) -> MainData:
+def get_main_data_from_db(firestore_data: FirestoreData) -> MainData:
     php_session_id = firestore_data.php_session_id
     url = firestore_data.url
-    is_sent = firestore_data.is_sent
 
     # Cookies
     cookies = {
@@ -90,3 +90,27 @@ def get_main_data(firestore_data: FirestoreData) -> MainData:
                     offDates_dates=[],
                     firestore_data=firestore_data
                     )
+
+
+def get_main_data(
+    request_php_token: str | None,
+    url: str | None,
+    telegram_id: str,
+) -> MainData | None:
+
+    firestore_data = get_latest_firestore_data(telegram_id)
+    if firestore_data is None:
+        return None
+
+    if (request_php_token is not None):
+        firestore_data.php_session_id = request_php_token
+
+    if (url is not None):
+        firestore_data.url = url
+
+    main_data = get_main_data_from_db(firestore_data)
+
+    firestore_data = main_data.firestore_data
+    # save latest firestore data
+    save_latest_firestore_data(firestore_data, telegram_id)
+    return main_data
